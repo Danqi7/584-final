@@ -1,0 +1,8 @@
+.DS_Store
+./train/*
+./test/*
+./validation/*
+SentEval-master/data/*
+!SentEval-master/data/downstream
+SentEval-master/data/downstream/*
+!SentEval-master/data/downstream/get_transfer_data.bash

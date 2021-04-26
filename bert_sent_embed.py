@@ -13,6 +13,9 @@ from transformers import BertModel, BertConfig, BertTokenizer, AdamW, AutoTokeni
 from datasets import load_dataset
 from datasets import load_from_disk
 
+from models import SentBert
+from utils import load_snli_data
+
 # set device to use
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -24,124 +27,6 @@ ENTAILMEN_LABEL = 0
 NEUTRAL_LABEL = 1
 CONTRADICTION_LABEL = 2
 
-def tokenize_sentences(example_batch):
-    # Tokenize data using bert tokenizer
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    
-    encoded_sent1 = tokenizer(
-        example_batch['premise'], padding=True, truncation=True)
-    sent1_input_ids = encoded_sent1['input_ids']
-    sent1_token_type_ids = encoded_sent1['token_type_ids']
-    sent1_attn_mask = encoded_sent1['attention_mask']
-
-    encoded_sent2 = tokenizer(
-        example_batch['hypothesis'], padding=True, truncation=True)
-    sent2_input_ids = encoded_sent2['input_ids']
-    sent2_token_type_ids = encoded_sent2['token_type_ids']
-    sent2_attn_mask = encoded_sent2['attention_mask']
-
-    return {'sent1_input_ids': sent1_input_ids,
-            'sent1_token_type_ids': sent1_token_type_ids,
-            'sent1_attention_mask': sent1_attn_mask,
-            'sent2_input_ids': sent2_input_ids,
-            'sent2_token_type_ids': sent2_token_type_ids,
-            'sent2_attention_mask': sent2_attn_mask}
-
-def load_snli_data(type, batch_size, save_dir):
-  dataset = load_dataset("snli", split=type)
-
-  # Filter out data examples with -1 label
-  dataset = dataset.filter(lambda e: e['label'] >= 0)
-
-  # Shuffle
-  # Don't shuffle since we want same premise cluster together
-  #dataset = dataset.shuffle()
-
-  # Tokenize data using bert tokenizer, default batch size is 1000
-  encoded_dataset = dataset.map(tokenize_sentences, batched=True, batch_size=batch_size)
-
-  # Convert to PyTorch Dataloader
-  encoded_dataset.set_format(type='torch',
-                             columns=['sent1_input_ids', 'sent1_attention_mask',
-                                      'sent2_input_ids', 'sent2_attention_mask', 
-                                      'label'])
-  
-  # Save pre-processed data to disk
-  encoded_dataset.save_to_disk(save_dir)
-
-  encoded_dataloader = torch.utils.data.DataLoader(encoded_dataset, batch_size=batch_size)
-
-  return encoded_dataloader
-
-class SentBert(nn.Module):
-    def __init__(self, input_dim, output_dim, tokenizer):
-        super(SentBert, self).__init__()
-        # Initiate bert model from huggingface
-        self.bert_model = AutoModel.from_pretrained(
-            "google/bert_uncased_L-8_H-512_A-8")
-        self.bert_model.train()
-
-        # Linear Layers
-        self.linear1 = nn.Linear(input_dim, input_dim//2)
-        self.linear2 = nn.Linear(input_dim//2, output_dim)
-    
-        # Tokenizer
-        self.tokenizer = tokenizer
-
-    def forward(self, sent1, attn_mask1, sent2, attn_mask2):
-        '''
-            sent1: (N x T1)
-            sent2: (N x T2)
-            attn_mask1: (N x T1)
-            attn_mask2: (N x T2)
-        '''
-        # N x T x hidden_size
-        N, T1 = sent1.shape
-        _, T2 = sent2.shape
-        out1 = self.bert_model(sent1, attention_mask=attn_mask1)
-        out2 = self.bert_model(sent2, attention_mask=attn_mask2)
-        H = out1['last_hidden_state'].shape[-1]
-
-        # Pooling
-        # TODO: need to apply attn_mask to zero out padded
-        # TODO: Ablation study: consider [CLS]/[SEP] in pooling?
-        hidden_states1 = out1['last_hidden_state'] # (N x T1 x H)
-        hidden_states1 = hidden_states1 * torch.reshape(attn_mask1, (N,T1,1))
-        hidden_states2 = out2['last_hidden_state']
-        hidden_states2 = hidden_states2 * torch.reshape(attn_mask2, (N,T2,1))
-        embedding1 = torch.mean(hidden_states1[:, 1:, :], axis=1) # N x H
-        embedding2 = torch.mean(hidden_states2[:, 1:, :], axis=1) 
-
-        # embedding1 = torch.mean(out1['last_hidden_state'][:,1:,:], axis=1) # N x hidden_size
-        # embedding2 = torch.mean(out2['last_hidden_state'][:,1:,:], axis=1)
-
-        # Concate embeddings (u, v, |u-v|)
-        # TODO: Ablation study different concate methods
-        diff = torch.abs(embedding1-embedding2)
-        merged = torch.cat((embedding1, embedding2, diff), -1)
-
-        merged = self.linear1(merged)
-        merged = self.linear2(merged) # N x class
-
-        return merged, (embedding1, embedding2)
-
-    def encode(self, sents):
-        # TODO: check if .eval() is needed
-        #  Answer: yes
-        self.bert_model.eval()
-        self.eval()
-
-        with torch.no_grad():
-            encoded_sent1 = self.tokenizer(sents, padding=True, truncation=True)
-            input_ids = torch.Tensor(encoded_sent1['input_ids']).long()
-            attn_mask = torch.Tensor(encoded_sent1['attention_mask']).long()
-            out = self.bert_model(input_ids, attention_mask=attn_mask)
-            embeddings = torch.mean(
-                out['last_hidden_state'][:, 1:, :], axis=1)  # N x hidden_size
-    
-        return embeddings.detach()
-
-
 def train(model, optimizer, loss_function, train_loader, eval_data, params):
     # Params
     batch_size = params["batch_size"]
@@ -152,6 +37,7 @@ def train(model, optimizer, loss_function, train_loader, eval_data, params):
     load_data_from_disk = params['load_data_from_disk']
     temperature = params['temperature']
     use_SCL = params['use_SCL']
+    lamb = params['lamb']
 
     # Print some info about train data
     num_data = len(train_loader) * batch_size
@@ -213,41 +99,81 @@ def train(model, optimizer, loss_function, train_loader, eval_data, params):
             output, (embeds1, embeds2) = model(sent1, attn_mask1, sent2, attn_mask2)
 
             # Supervised Contrastive Loss
-            # TODO: numerical stability? exp(x) / sum(exp(x))
+            # Positive examples only exist if there is entrailment pair
             if use_SCL == True:
+                SCL_cnt = 0
+                #print('start SCL....')
+                batch_size = sent1.shape[0]  # N
+                hidden_size = embeds1.shape[1]  # H
                 negative_num = 3  # TODO: hyperparam
+                positive_num = 3
+
                 SCLLoss = 0
-                for i in range(sent1.shape[1]):
-                    label = labels[i]
-                    if label == ENTAILMEN_LABEL:
-                        current_premise = sent1[i, :]
-                        #scores = embeds1[i]
-                        anchor = embeds1[i]
-                        scores = embeds2[i] # 1 x H
+                for eidx in range(batch_size):
+                    if labels[eidx] == ENTAILMEN_LABEL:
+                        SCL_cnt += 1
+                        current_premise = sent1[eidx, :]
+                        anchor = torch.unsqueeze(embeds1[eidx], dim=1)  # H x 1
+                        # 1 x H, its entailment is pos example
+                        scores = torch.unsqueeze(embeds2[eidx], dim=0)
+
                         pos_cnt = 1
                         neg_cnt = 0
-                        for j in range(sent1.shape[1]):
-                            # positive example
-                            if torch.all(sent1[j, :] == current_premise) and labels[j] == ENTAILMEN_LABEL:
-                                scores = torch.cat((scores, embeds2[j]),dim=0) # {pos_num x H}
-                                pos_cnt += 1
-                            elif neg_cnt < negative_num:
-                                # negative examples
-                                scores = torch.cat((scores, embeds2[j]),dim=0) # ((pos_cnt + neg_cnt) x H)
-                                neg_cnt += 1
-                        print('computing SCL...')
-                        anchor = torch.unsqueeze(anchor, dim=1) # H x 1
-                        logits = scores @ anchor # (pos+neg) x 1
+                        same_premise_idxs = []
+                        entailment_idxs = [eidx]
+                        same_premise_not_entailment = []
+                        pos_candidates_idxs = []  # w/t itself
+
+                        # Figure out entailment_idxs, pos_candidates_idxs
+                        for j in range(batch_size):
+                            if torch.all(sent1[j, :] == current_premise):
+                                same_premise_idxs.append(j)
+                                if j != eidx and labels[j] == ENTAILMEN_LABEL:
+                                    entailment_idxs.append(j)
+                                    pos_candidates_idxs.append(j)
+
+                        # Positive examples
+                        # print('pos_candidates_idxs: ', pos_candidates_idxs)
+                        # print('entailment_idxs: ', entailment_idxs)
+                        current_positive_num = positive_num - 1
+                        if len(pos_candidates_idxs) < positive_num - 1:
+                            current_positive_num = len(pos_candidates_idxs)
+                        pos_idxs = np.random.choice(
+                            pos_candidates_idxs, current_positive_num, replace=False)
+                        for pos_id in pos_idxs:
+                            scores = torch.cat((scores, torch.unsqueeze(embeds2[pos_id, :], dim=0)), dim=0)
+                            pos_cnt += 1
+
+                        # Negative examples
+                        candidates_idxs = np.arange(batch_size)
+                        candidates_idxs = np.delete(candidates_idxs, entailment_idxs)
+                        neg_idxs = np.random.choice(candidates_idxs, negative_num, replace=False)
+                        for neg_id in neg_idxs:
+                            scores = torch.cat((scores, torch.unsqueeze(embeds2[neg_id, :], dim=0)), dim=0)
+                            neg_cnt += 1
+
+                        #if pos_cnt > 1:
+                        #  print('entailment_idxs for ', i , ' : ', entailment_idxs)
+                        # print('!!! same_premise_idx: ', same_premise_idxs)
+                        # print('!!! entailment_idxs for ', eidx , ' : ', entailment_idxs)
+                        # print('!!! candidates_idxs: ', candidates_idxs)
+                        # print('~~~computing SCL witph %d positive and %d negative...'%(pos_cnt, neg_cnt))
+                        # print('anchor.shape: ', anchor.shape)
+                        # print('scores.shape: ', scores.shape)
+                        logits = scores @ anchor  # (pos+neg) x 1
                         logits = logits / temperature
-                        log_prob = F.log_softmax(logits,dim=0)  # (pos+neg) x 1
+                        log_prob = F.log_softmax(logits, dim=0)  # (pos+neg) x 1
+                        #print('log_prob.shape: ', log_prob.shape)
                         SCLLoss += -torch.sum(log_prob[:pos_cnt, :]) / pos_cnt
+                #print('DONE SCL!!!!!....')
 
 
             # CE Loss                    
             loss = loss_function(output, labels)
-            
+
+            # SCL + CE Loss
             if use_SCL == True:
-                loss += SCLLoss
+                loss = (1-lamb) * loss + lamb * (SCLLoss / SCL_cnt)
             
             loss.backward()
             optimizer.step()
@@ -282,7 +208,7 @@ def train(model, optimizer, loss_function, train_loader, eval_data, params):
                     sample_attn2 = sample_attn2.to(device)
                     sample_label = sample_label.to(device)
 
-                    sample_out = model(sample_sent1, sample_attn1,
+                    sample_out, _ = model(sample_sent1, sample_attn1,
                                         sample_sent2, sample_attn2) # N x 3
                     sample_loss = loss_function(sample_out, sample_label)
                     sample_pred = torch.argmax(sample_out, 1)
@@ -316,6 +242,7 @@ if __name__ == "__main__":
                         help="Whether to load train/val data from disk or load from HF repo")
     parser.add_argument("--temperature", default=1.0, type=float, help="Temperature for softmax")
     parser.add_argument("--use_SCL", default=False, action='store_true', help="Whether to use SCL Loss in addition to CE Loss")
+    parser.add_argument("--lamb", default=0.5, type=float, help="lambda for SCL Loss")
 
     args = parser.parse_args()
     print(args)
@@ -330,42 +257,41 @@ if __name__ == "__main__":
         train_dataset = load_from_disk("./train/")
         validation_dataset = load_from_disk("./validation/")
         test_dataset = load_from_disk("./test/")
-        #premise = test_dataset['premise']
-        #print('%s'%(type(premise)))
 
         train_dataloader = torch.utils.data.DataLoader(
             train_dataset, batch_size=batch_size)
+        validation_dataloader = torch.utils.data.DataLoader(
+            validation_dataset, batch_size=1000)
         test_dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=10000)
-        validation_dataloader = torch.utils.data.DataLoader(validation_dataset, batch_size=1000)
-
+        
         print('Done loading datasets. train data%s\n validation data%s\n test data%s\n' % (
             train_dataset, validation_dataset, test_dataset))
     else:
         print("Loading data from scratch (HG) ...")
+        #sample_dataloader = load_snli_data('test', batch_size, save_dir="./sample")
         train_dataloader = load_snli_data('train', batch_size, save_dir="./train")
         test_dataloader = load_snli_data('test', 10000, save_dir='./test')
         validation_dataloader = load_snli_data('validation', 10000, save_dir='./validation')
 
     sample_eval_data = next(iter(validation_dataloader)) # Just for eval model during training
 
+    # Hyperparams
     hidden_size = HIDDEN_SIZE
     num_class = NUM_CLASS
-    num_epochs = args.num_epochs
     num_iters_per_print = 10
-    num_iters_per_eval = 10
     num_epoch_per_eval = 1
-    temperature = args.temperature
     params = {
         "batch_size": batch_size,
-        "num_iters_per_eval": num_iters_per_eval,
         "num_iters_per_print": num_iters_per_print,
-        "num_epochs": num_epochs,
+        "num_epochs": args.num_epochs,
         "num_epoch_per_eval": num_epoch_per_eval,
         "save_file": args.store_files,
         "load_data_from_disk": args.load_data_from_disk,
-        "temperature": 1,
+        "temperature": args.temperature,
         "use_SCL": args.use_SCL,
+        "lamb": args.lamb,
     }
+
     # Model
     tokenizer = AutoTokenizer.from_pretrained("google/bert_uncased_L-8_H-512_A-8")
     model = SentBert(hidden_size * 3, num_class, tokenizer).to(device)
@@ -400,34 +326,34 @@ if __name__ == "__main__":
         eval_attn_mask2 = eval_data['sent2_attention_mask'].to(device)
         eval_labels = eval_data['label'].to(device)
 
-        eval_out = model(eval_sent1, eval_attn_mask1, eval_sent2, eval_attn_mask2)  # N x 3
+        eval_out, _ = model(eval_sent1, eval_attn_mask1, eval_sent2, eval_attn_mask2)  # N x 3
         eval_loss = loss_function(eval_out, eval_labels)
         eval_pred = torch.argmax(eval_out, 1)
         eval_acc = (eval_pred == eval_labels).sum().item() / eval_labels.shape[0]
         print("Full Testing Data Loss: ", eval_losses, "\tTest Accuracy: ", eval_acc)
 
 
-    # Plot
-    plt.figure()
-    plt.title('Train Loss per ' + str(num_iters_per_eval) + ' iterations')
-    plt.plot(train_losses)
-    plt.xlabel('ith ' + str(num_iters_per_eval) + ' iterations')
-    plt.ylabel('Train Loss')
+    # # Plot
+    # plt.figure()
+    # plt.title('Train Loss per ' + str(num_iters_per_eval) + ' iterations')
+    # plt.plot(train_losses)
+    # plt.xlabel('ith ' + str(num_iters_per_eval) + ' iterations')
+    # plt.ylabel('Train Loss')
 
-    plt.figure()
-    plt.title('Validation Loss per ' + str(num_iters_per_eval) + ' iterations')
-    plt.plot(validation_losses)
-    plt.xlabel('ith ' + str(num_iters_per_eval) + ' iterations')
-    plt.ylabel('Validation Loss')
+    # plt.figure()
+    # plt.title('Validation Loss per ' + str(num_iters_per_eval) + ' iterations')
+    # plt.plot(validation_losses)
+    # plt.xlabel('ith ' + str(num_iters_per_eval) + ' iterations')
+    # plt.ylabel('Validation Loss')
 
-    plt.figure()
-    plt.title('Train Accuracy per ' + str(num_iters_per_eval) + ' iterations')
-    plt.plot(train_accs)
-    plt.xlabel('ith ' + str(num_iters_per_eval) + ' iterations')
-    plt.ylabel('Train Accuracy')
+    # plt.figure()
+    # plt.title('Train Accuracy per ' + str(num_iters_per_eval) + ' iterations')
+    # plt.plot(train_accs)
+    # plt.xlabel('ith ' + str(num_iters_per_eval) + ' iterations')
+    # plt.ylabel('Train Accuracy')
 
-    plt.figure()
-    plt.title('Validation Accuracy per ' + str(num_iters_per_eval) + ' iterations')
-    plt.plot(validation_accs)
-    plt.xlabel('ith ' + str(num_iters_per_eval) + ' iterations')
-    plt.ylabel('Validation Accuracy')
+    # plt.figure()
+    # plt.title('Validation Accuracy per ' + str(num_iters_per_eval) + ' iterations')
+    # plt.plot(validation_accs)
+    # plt.xlabel('ith ' + str(num_iters_per_eval) + ' iterations')
+    # plt.ylabel('Validation Accuracy')

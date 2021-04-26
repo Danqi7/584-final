@@ -4,6 +4,7 @@ import sys
 import io
 import numpy as np
 import logging
+import time
 
 from transformers import BertModel, BertConfig, BertTokenizer, AdamW
 
@@ -14,13 +15,13 @@ import senteval
 
 # import bert_sent_embed
 sys.path.insert(0, '../../')
-from models import SentBert
+from bert_sent_embed import SentBert, SentBert8
 
-from sentence_transformers import SentenceTransformer
+#from sentence_transformers import SentenceTransformer
 
 # Set PATHs
 PATH_TO_DATA = '../data'
-MODEL_PATH = '../models/baseline/sent-bert8.pt'
+MODEL_PATH = '../models/sent-bert8base.pt'
 
 # Device
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -30,7 +31,7 @@ OUTPUT_DIM = 3
 
 def init_model(model_path):
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = SentBert(HIDDEN_SIZE*3, OUTPUT_DIM, tokenizer)
+    model = SentBert8(HIDDEN_SIZE*3, OUTPUT_DIM, tokenizer)
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
 
@@ -65,5 +66,9 @@ if __name__ == "__main__":
     #                   'BigramShift', 'Tense', 'SubjNumber', 'ObjNumber',
     #                   'OddManOut', 'CoordinationInversion']
     transfer_tasks = ['STS12', 'STS13', 'STS14', 'STS15', 'STS16', 'MR']
+    start_time = time.time()
     results = se.eval(transfer_tasks)
     #print(results)
+    elapsed_time = time.time() - start_time
+    print('Evaluation Finished in : ', time.strftime(
+        "%H:%M:%S", time.gmtime(elapsed_time)))
