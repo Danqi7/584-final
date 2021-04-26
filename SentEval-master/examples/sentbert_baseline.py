@@ -15,7 +15,7 @@ import senteval
 
 # import bert_sent_embed
 sys.path.insert(0, '../../')
-from bert_sent_embed import SentBert, SentBert8
+from models import SentBert
 
 #from sentence_transformers import SentenceTransformer
 
@@ -31,7 +31,7 @@ OUTPUT_DIM = 3
 
 def init_model(model_path):
     tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = SentBert8(HIDDEN_SIZE*3, OUTPUT_DIM, tokenizer)
+    model = SentBert(HIDDEN_SIZE*3, OUTPUT_DIM, tokenizer)
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
 

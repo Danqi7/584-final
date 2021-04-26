@@ -16,7 +16,7 @@ import senteval
 sys.path.insert(0, '../../')
 from models import SentBert
 
-from sentence_transformers import SentenceTransformer
+#from sentence_transformers import SentenceTransformer
 
 # Set PATHs
 PATH_TO_DATA = '../data'
