@@ -40,7 +40,7 @@ class STSEval(object):
                                      io.open(fpath + '/STS2016.input.%s.txt' % dataset,
                                              encoding='utf8').read().splitlines()]
 
-                print('zip.....~~~~: ', debug_lines[0])
+                #print('zip.....~~~~: ', debug_lines[0])
                 sent1, sent2, _, _ = zip(*[l.split("\t") for l in
                                      io.open(fpath + '/STS2016.input.%s.txt' % dataset,
                                              encoding='utf8').read().splitlines()])

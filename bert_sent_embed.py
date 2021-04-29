@@ -27,7 +27,8 @@ ENTAILMEN_LABEL = 0
 NEUTRAL_LABEL = 1
 CONTRADICTION_LABEL = 2
 
-def train(model, optimizer, loss_function, scheduler, train_loader, eval_data, params):
+
+def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, params):
     # Params
     batch_size = params["batch_size"]
     num_epochs = params["num_epochs"]
@@ -91,6 +92,7 @@ def train(model, optimizer, loss_function, scheduler, train_loader, eval_data, p
             attn_mask1 = data['sent1_attention_mask'].to(device)
             attn_mask2 = data['sent2_attention_mask'].to(device)
             labels = data['label'].to(device)
+            print('sent1.shape: ', sent1.shape)
 
             # Train batch
             model.zero_grad()
@@ -179,7 +181,7 @@ def train(model, optimizer, loss_function, scheduler, train_loader, eval_data, p
             scheduler.step()
 
             # Evaluate on sample validation dataset
-            if (e % num_epoch_per_eval == 0 and i == num_iters_per_epoch - 1) or (e == num_epochs-1 and i == num_iters_per_epoch - 1):
+            if i % num_iters_per_print == 0 or (e == num_epochs-1 and i == num_iters_per_epoch - 1):
                 with torch.no_grad():
                     sample_size = 100
                     if eval_num > sample_size:
@@ -234,7 +236,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--store_files", type=str, default="./models/",
                         help="Where to store the trained model")
-    parser.add_argument("--batch_size", default=16,
+    parser.add_argument("--batch_size", default=64,
                         type=int, help="How many sentence pairs in a batch")
     parser.add_argument("--num_epochs", default=1,
                         type=int, help="epochs to train")
@@ -284,7 +286,7 @@ if __name__ == "__main__":
     num_iters_per_print = 10
     num_epoch_per_eval = 1
     learning_rate = 2e-5
-    warmup_step = int((len(train_loader) * 0.1))
+    warmup_step = int((len(train_dataloader) * 0.1))
     print('warmup_step: ', warmup_step)
     params = {
         "batch_size": batch_size,
