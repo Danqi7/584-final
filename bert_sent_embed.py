@@ -21,13 +21,13 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 HIDDEN_SIZE = 512
 NUM_CLASS = 3
-BATCH_SIZE = 64
+BATCH_SIZE = 16
 
 ENTAILMEN_LABEL = 0
 NEUTRAL_LABEL = 1
 CONTRADICTION_LABEL = 2
 
-def train(model, optimizer, loss_function, train_loader, eval_data, params):
+def train(model, optimizer, loss_function, scheduler, train_loader, eval_data, params):
     # Params
     batch_size = params["batch_size"]
     num_epochs = params["num_epochs"]
@@ -176,6 +176,7 @@ def train(model, optimizer, loss_function, train_loader, eval_data, params):
             
             loss.backward()
             optimizer.step()
+            scheduler.step()
 
             # Evaluate on sample validation dataset
             if (e % num_epoch_per_eval == 0 and i == num_iters_per_epoch - 1) or (e == num_epochs-1 and i == num_iters_per_epoch - 1):
@@ -233,7 +234,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--store_files", type=str, default="./models/",
                         help="Where to store the trained model")
-    parser.add_argument("--batch_size", default=64,
+    parser.add_argument("--batch_size", default=16,
                         type=int, help="How many sentence pairs in a batch")
     parser.add_argument("--num_epochs", default=1,
                         type=int, help="epochs to train")
@@ -275,13 +276,16 @@ if __name__ == "__main__":
         validation_dataloader = load_snli_data('validation', 10000, save_dir='./validation')
 
     sample_eval_data = next(iter(validation_dataloader)) # Just for eval model during training
+    print(sample_eval_data['label'].shape)
 
     # Hyperparams
     hidden_size = HIDDEN_SIZE
     num_class = NUM_CLASS
     num_iters_per_print = 10
     num_epoch_per_eval = 1
-    learning_rate = 1e-5
+    learning_rate = 2e-5
+    warmup_step = int((len(train_loader) * 0.1))
+    print('warmup_step: ', warmup_step)
     params = {
         "batch_size": batch_size,
         "num_iters_per_print": num_iters_per_print,
@@ -298,8 +302,12 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained("google/bert_uncased_L-8_H-512_A-8")
     model = SentBert(hidden_size * 3, num_class, tokenizer).to(device)
     print(model)
-    # TODO: add warmup steps + weight decaying similar to the paper
+
+    # Optimizer
     optimizer = AdamW(model.parameters(), lr=learning_rate)
+    scheduler = transformers.get_constant_schedule_with_warmup(
+        optimizer, warmup_step)
+
 
     # Cross Entropy Loss
     loss_function = nn.CrossEntropyLoss()
@@ -307,7 +315,7 @@ if __name__ == "__main__":
     start_time = time.time()
     # Train
     train_losses, validation_losses, train_accs, validation_accs = train(
-        model, optimizer, loss_function, train_dataloader, sample_eval_data, params)
+        model, optimizer, scheduler, loss_function, train_dataloader, sample_eval_data, params)
     
     # Create model directory
     dir_name = args.store_files + "scl%d-lr%s-lamb%.1f-t%.1f-%.1f" % (
@@ -326,7 +334,6 @@ if __name__ == "__main__":
 
     final_acc = eval(model, test_dataloader)
     print("Full Testing Accuracy: ", final_acc)
-
 
     # # Plot
     # plt.figure()

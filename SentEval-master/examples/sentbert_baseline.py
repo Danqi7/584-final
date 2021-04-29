@@ -21,7 +21,7 @@ from models import SentBert
 
 # Set PATHs
 PATH_TO_DATA = '../data'
-MODEL_PATH = '../models/sent-bert8base.pt'
+MODEL_PATH = '../models/warmup/sent-bert8.pt'
 
 # Device
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     #                   'Length', 'WordContent', 'Depth', 'TopConstituents',
     #                   'BigramShift', 'Tense', 'SubjNumber', 'ObjNumber',
     #                   'OddManOut', 'CoordinationInversion']
-    transfer_tasks = ['STS12', 'STS13', 'STS14', 'STS15', 'STS16', 'MR']
+    transfer_tasks = ['STS12', 'STS13', 'STS14', 'STS15', 'STS16']
     start_time = time.time()
     results = se.eval(transfer_tasks)
     #print(results)

@@ -77,9 +77,9 @@ class SentBert(nn.Module):
     def encode(self, sents):
         self.bert_model.eval()
         self.eval()
-
-        N, T = sents.shape
-        print('encoding sents.shape: ', sents.shape)
+        #print('sents: ', sents)
+        #N, T = sents.shape
+        
         with torch.no_grad():
             encoded_sent1 = self.tokenizer(
                 sents, padding=True, truncation=True)
@@ -87,6 +87,8 @@ class SentBert(nn.Module):
             attn_mask = torch.Tensor(encoded_sent1['attention_mask']).long()
             out = self.bert_model(input_ids, attention_mask=attn_mask)
             hidden_states = out['last_hidden_state']
+            N, T, H = hidden_states.shape
+            #print('hidden_states.shape: ', hidden_states.shape)
             hidden_states = hidden_states * torch.reshape(attn_mask, (N, T, 1))
             embeddings = torch.mean(
                 hidden_states[:, 1:, :], axis=1)  # N x hidden_size

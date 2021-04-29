@@ -64,7 +64,7 @@ do
     curl -Lo $data_path/SST/binary/sentiment-$split $SSTbin/sentiment-$split
 done
 
-# SST fine-grained
+SST fine-grained
 mkdir -p $data_path/SST/fine/
 for split in train dev test
 do
@@ -109,21 +109,21 @@ done
 
 # STSBenchmark (http://ixa2.si.ehu.es/stswiki/index.php/STSbenchmark)
 
-curl -Lo $data_path/Stsbenchmark.tar.gz $STSBenchmark
-tar -zxvf $data_path/Stsbenchmark.tar.gz -C $data_path
-rm $data_path/Stsbenchmark.tar.gz
-mv $data_path/stsbenchmark $data_path/STS/STSBenchmark
+# curl -Lo $data_path/Stsbenchmark.tar.gz $STSBenchmark
+# tar -zxvf $data_path/Stsbenchmark.tar.gz -C $data_path
+# rm $data_path/Stsbenchmark.tar.gz
+# mv $data_path/stsbenchmark $data_path/STS/STSBenchmark
 
-for split in train dev test
-do
-    fname=sts-$split.csv
-    fdir=$data_path/STS/STSBenchmark
-    cut -f1,2,3,4,5 $fdir/$fname > $fdir/tmp1
-    cut -f6 $fdir/$fname | $MTOKENIZER -threads 8 -l en -no-escape | $LOWER > $fdir/tmp2
-    cut -f7 $fdir/$fname | $MTOKENIZER -threads 8 -l en -no-escape | $LOWER > $fdir/tmp3
-    paste $fdir/tmp1 $fdir/tmp2 $fdir/tmp3 > $fdir/$fname
-    rm $fdir/tmp1 $fdir/tmp2 $fdir/tmp3
-done
+# for split in train dev test
+# do
+#     fname=sts-$split.csv
+#     fdir=$data_path/STS/STSBenchmark
+#     cut -f1,2,3,4,5 $fdir/$fname > $fdir/tmp1
+#     cut -f6 $fdir/$fname | $MTOKENIZER -threads 8 -l en -no-escape | $LOWER > $fdir/tmp2
+#     cut -f7 $fdir/$fname | $MTOKENIZER -threads 8 -l en -no-escape | $LOWER > $fdir/tmp3
+#     paste $fdir/tmp1 $fdir/tmp2 $fdir/tmp3 > $fdir/$fname
+#     rm $fdir/tmp1 $fdir/tmp2 $fdir/tmp3
+# done
 
 
 
@@ -177,7 +177,7 @@ curl -Lo $data_path/data_classif.zip $BINCLASSIF
 unzip $data_path/data_classif.zip -d $data_path/data_bin_classif
 rm $data_path/data_classif.zip
 
-# MR
+# # MR
 mkdir $data_path/MR
 cat -v $data_path/data_bin_classif/data/rt10662/rt-polarity.pos | $PTBTOKENIZER > $data_path/MR/rt-polarity.pos
 cat -v $data_path/data_bin_classif/data/rt10662/rt-polarity.neg | $PTBTOKENIZER > $data_path/MR/rt-polarity.neg
@@ -238,5 +238,5 @@ curl -Lo $data_path/MRPC/msr_paraphrase_train.txt https://dl.fbaipublicfiles.com
 curl -Lo $data_path/MRPC/msr_paraphrase_test.txt https://dl.fbaipublicfiles.com/senteval/senteval_data/msr_paraphrase_test.txt
 
 
-# remove moses folder
-rm -rf mosesdecoder
+# # remove moses folder
+# rm -rf mosesdecoder
