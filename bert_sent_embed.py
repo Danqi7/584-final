@@ -14,7 +14,7 @@ from datasets import load_dataset
 from datasets import load_from_disk
 
 from models import SentBert
-from utils import load_snli_data
+from utils import load_snli_data, eval
 
 # set device to use
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -33,7 +33,6 @@ def train(model, optimizer, loss_function, train_loader, eval_data, params):
     num_epochs = params["num_epochs"]
     num_iters_per_print = params['num_iters_per_print']
     num_epoch_per_eval = params['num_epoch_per_eval']
-    save_file = params['save_file']
     load_data_from_disk = params['load_data_from_disk']
     temperature = params['temperature']
     use_SCL = params['use_SCL']
@@ -232,7 +231,7 @@ def train(model, optimizer, loss_function, train_loader, eval_data, params):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--store_files", type=str, required=True,
+    parser.add_argument("--store_files", type=str, default="./models/",
                         help="Where to store the trained model")
     parser.add_argument("--batch_size", default=64,
                         type=int, help="How many sentence pairs in a batch")
@@ -243,6 +242,8 @@ if __name__ == "__main__":
     parser.add_argument("--temperature", default=1.0, type=float, help="Temperature for softmax")
     parser.add_argument("--use_SCL", default=False, action='store_true', help="Whether to use SCL Loss in addition to CE Loss")
     parser.add_argument("--lamb", default=0.5, type=float, help="lambda for SCL Loss")
+    parser.add_argument("--pos_num", default=3, type=int, help="Positive Example number for super contrastive learning")
+    parser.add_argument("--neg_num", default=3, type=int, help="Negative example number for super contrastive learning")
 
     args = parser.parse_args()
     print(args)
@@ -280,6 +281,7 @@ if __name__ == "__main__":
     num_class = NUM_CLASS
     num_iters_per_print = 10
     num_epoch_per_eval = 1
+    learning_rate = 1e-5
     params = {
         "batch_size": batch_size,
         "num_iters_per_print": num_iters_per_print,
@@ -297,40 +299,33 @@ if __name__ == "__main__":
     model = SentBert(hidden_size * 3, num_class, tokenizer).to(device)
     print(model)
     # TODO: add warmup steps + weight decaying similar to the paper
-    optimizer = AdamW(model.parameters(), lr=0.00001)
+    optimizer = AdamW(model.parameters(), lr=learning_rate)
 
     # Cross Entropy Loss
     loss_function = nn.CrossEntropyLoss()
 
+    start_time = time.time()
     # Train
     train_losses, validation_losses, train_accs, validation_accs = train(
         model, optimizer, loss_function, train_dataloader, sample_eval_data, params)
+    
+    # Create model directory
+    dir_name = args.store_files + "scl%d-lr%s-lamb%.1f-t%.1f-%.1f" % (
+        args.use_SCL, learning_rate, args.lamb, args.temperature, start_time)
+    os.mkdir(dir_name)
+    print('Saving model to dir: ', dir_name)
+
+    model_save_name = 'sent-bert8.pt'
+    path = dir_name + "/" + model_save_name
+
+    # Save Model
+    torch.save(model.state_dict(), path)
 
     # Eval on full testing data
-    eval_data = next(iter(test_dataloader))
     print('Evaluating on %d test data...'%(test_dataloader))
-    with torch.no_grad():
-        # if args.load_data_from_disk == True:
-        #     eval_sent1 = torch.stack(
-        #         eval_data['sent1_input_ids'], dim=0).permute(1, 0).to(device)  # n x T
-        #     eval_sent2 = torch.stack(
-        #         eval_data['sent2_input_ids'], dim=0).permute(1, 0).to(device)  # n x T
-        #     eval_attn_mask1 = torch.stack(
-        #         eval_data['sent1_attention_mask'], dim=0).permute(1, 0).to(device)
-        #     eval_attn_mask2 = torch.stack(
-        #         eval_data['sent2_attention_mask'], dim=0).permute(1, 0).to(device)
-        # else:
-        eval_sent1 = eval_data['sent1_input_ids'].to(device)
-        eval_sent2 = eval_data['sent2_input_ids'].to(device)
-        eval_attn_mask1 = eval_data['sent1_attention_mask'].to(device)
-        eval_attn_mask2 = eval_data['sent2_attention_mask'].to(device)
-        eval_labels = eval_data['label'].to(device)
 
-        eval_out, _ = model(eval_sent1, eval_attn_mask1, eval_sent2, eval_attn_mask2)  # N x 3
-        eval_loss = loss_function(eval_out, eval_labels)
-        eval_pred = torch.argmax(eval_out, 1)
-        eval_acc = (eval_pred == eval_labels).sum().item() / eval_labels.shape[0]
-        print("Full Testing Data Loss: ", eval_losses, "\tTest Accuracy: ", eval_acc)
+    final_acc = eval(model, test_dataloader)
+    print("Full Testing Accuracy: ", final_acc)
 
 
     # # Plot
@@ -357,3 +352,16 @@ if __name__ == "__main__":
     # plt.plot(validation_accs)
     # plt.xlabel('ith ' + str(num_iters_per_eval) + ' iterations')
     # plt.ylabel('Validation Accuracy')
+
+    f = open(dir_name + "/model_info.txt", "a")
+    content = "model: " + dir_name + "\n" + "Train Loss: " + \
+        str(np.mean(np.array(train_losses))) + "\nValidation loss: " + \
+        str(np.mean(np.array(validation_losses)))
+    content += "\nTrain Accuracy: " + \
+        str(np.mean(train_accs)) + "\nTest Accuracy: " + str(final_acc)
+    content += "\nlr: " + str(learning_rate) + "\nbatch size: " + \
+        str(batch_size) + "\nnum_epochs: " + str(args.num_epochs)
+    content += "\nArguments: %s" %(args)
+    content += "\nArchitecture: " + model.__str__()
+    f.write(content)
+    f.close()

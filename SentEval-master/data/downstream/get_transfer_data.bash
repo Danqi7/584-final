@@ -42,16 +42,16 @@ COCO='https://dl.fbaipublicfiles.com/senteval/coco_r101_feat'
 MRPC='https://download.microsoft.com/download/D/4/6/D46FF87A-F6B9-4252-AA8B-3604ED519838/MSRParaphraseCorpus.msi'
 
 # STS 2012, 2013, 2014, 2015, 2016
-declare -A STS_tasks
-declare -A STS_paths
-declare -A STS_subdirs
+# declare -A STS_tasks
+# declare -A STS_paths
+# declare -A STS_subdirs
 
-STS_tasks=(["STS12"]="MSRpar MSRvid SMTeuroparl surprise.OnWN surprise.SMTnews" ["STS13"]="FNWN headlines OnWN" ["STS14"]="deft-forum deft-news headlines OnWN images tweet-news" ["STS15"]="answers-forums answers-students belief headlines images" ["STS16"]="answer-answer headlines plagiarism postediting question-question")
+# STS_tasks=(["STS12"]="MSRpar MSRvid SMTeuroparl surprise.OnWN surprise.SMTnews" ["STS13"]="FNWN headlines OnWN" ["STS14"]="deft-forum deft-news headlines OnWN images tweet-news" ["STS15"]="answers-forums answers-students belief headlines images" ["STS16"]="answer-answer headlines plagiarism postediting question-question")
 
-STS_paths=(["STS12"]="http://ixa2.si.ehu.es/stswiki/images/4/40/STS2012-en-test.zip" ["STS13"]="http://ixa2.si.ehu.es/stswiki/images/2/2f/STS2013-en-test.zip" ["STS14"]="http://ixa2.si.ehu.es/stswiki/images/8/8c/STS2014-en-test.zip" ["STS15"]="http://ixa2.si.ehu.es/stswiki/images/d/da/STS2015-en-test.zip"
-["STS16"]="http://ixa2.si.ehu.es/stswiki/images/9/98/STS2016-en-test.zip")
+# STS_paths=(["STS12"]="http://ixa2.si.ehu.es/stswiki/images/4/40/STS2012-en-test.zip" ["STS13"]="http://ixa2.si.ehu.es/stswiki/images/2/2f/STS2013-en-test.zip" ["STS14"]="http://ixa2.si.ehu.es/stswiki/images/8/8c/STS2014-en-test.zip" ["STS15"]="http://ixa2.si.ehu.es/stswiki/images/d/da/STS2015-en-test.zip"
+# ["STS16"]="http://ixa2.si.ehu.es/stswiki/images/9/98/STS2016-en-test.zip")
 
-STS_subdirs=(["STS12"]="test-gold" ["STS13"]="test-gs" ["STS14"]="sts-en-test-gs-2014" ["STS15"]="STS15-en-test" ["STS16"]="STS16-en-test")
+# STS_subdirs=(["STS12"]="test-gold" ["STS13"]="test-gs" ["STS14"]="sts-en-test-gs-2014" ["STS15"]="STS15-en-test" ["STS16"]="STS16-en-test")
 
 
 
@@ -74,37 +74,37 @@ done
 ### STS datasets
 
 # STS12, STS13, STS14, STS15, STS16
-mkdir $data_path/STS
+# mkdir $data_path/STS
 
-for task in "${!STS_tasks[@]}"; #"${!STS_tasks[@]}";
-do
-    fpath=${STS_paths[$task]}
-    echo $fpath
-    curl -Lo $data_path/STS/data_$task.zip $fpath
-    unzip $data_path/STS/data_$task.zip -d $data_path/STS
-    mv $data_path/STS/${STS_subdirs[$task]} $data_path/STS/$task-en-test
-    #rm $data_path/STS/data_$task.zip
+# for task in "${!STS_tasks[@]}"; #"${!STS_tasks[@]}";
+# do
+#     fpath=${STS_paths[$task]}
+#     echo $fpath
+#     curl -Lo $data_path/STS/data_$task.zip $fpath
+#     unzip $data_path/STS/data_$task.zip -d $data_path/STS
+#     mv $data_path/STS/${STS_subdirs[$task]} $data_path/STS/$task-en-test
+#     #rm $data_path/STS/data_$task.zip
 
-    for sts_task in ${STS_tasks[$task]}
-    do
-        fname=STS.input.$sts_task.txt
-        task_path=$data_path/STS/$task-en-test/
+#     for sts_task in ${STS_tasks[$task]}
+#     do
+#         fname=STS.input.$sts_task.txt
+#         task_path=$data_path/STS/$task-en-test/
 
-        if [ "$task" = "STS16" ] ; then
-            echo 'Handling STS2016'
-            mv $task_path/STS2016.input.$sts_task.txt $task_path/$fname
-            mv $task_path/STS2016.gs.$sts_task.txt $task_path/STS.gs.$sts_task.txt
-        fi
+#         if [ "$task" = "STS16" ] ; then
+#             echo 'Handling STS2016'
+#             mv $task_path/STS2016.input.$sts_task.txt $task_path/$fname
+#             mv $task_path/STS2016.gs.$sts_task.txt $task_path/STS.gs.$sts_task.txt
+#         fi
 
 
 
-        cut -f1 $task_path/$fname | $MTOKENIZER -threads 8 -l en -no-escape | $LOWER > $task_path/tmp1
-        cut -f2 $task_path/$fname | $MTOKENIZER -threads 8 -l en -no-escape | $LOWER > $task_path/tmp2
-        paste $task_path/tmp1 $task_path/tmp2 > $task_path/$fname
-        rm $task_path/tmp1 $task_path/tmp2
-    done
+#         cut -f1 $task_path/$fname | $MTOKENIZER -threads 8 -l en -no-escape | $LOWER > $task_path/tmp1
+#         cut -f2 $task_path/$fname | $MTOKENIZER -threads 8 -l en -no-escape | $LOWER > $task_path/tmp2
+#         paste $task_path/tmp1 $task_path/tmp2 > $task_path/$fname
+#         rm $task_path/tmp1 $task_path/tmp2
+#     done
 
-done
+# done
 
 
 # STSBenchmark (http://ixa2.si.ehu.es/stswiki/index.php/STSbenchmark)
@@ -201,33 +201,33 @@ cat -v $data_path/data_bin_classif/data/mpqa/mpqa.neg | $PTBTOKENIZER > $data_pa
 rm -r $data_path/data_bin_classif
 
 ### download SNLI
-mkdir $data_path/SNLI
-curl -Lo $data_path/SNLI/snli_1.0.zip $SNLI
-unzip $data_path/SNLI/snli_1.0.zip -d $data_path/SNLI
-rm $data_path/SNLI/snli_1.0.zip
-rm -r $data_path/SNLI/__MACOSX
+# mkdir $data_path/SNLI
+# curl -Lo $data_path/SNLI/snli_1.0.zip $SNLI
+# unzip $data_path/SNLI/snli_1.0.zip -d $data_path/SNLI
+# rm $data_path/SNLI/snli_1.0.zip
+# rm -r $data_path/SNLI/__MACOSX
 
-for split in train dev test
-do
-    fpath=$data_path/SNLI/$split.snli.txt
-    awk '{ if ( $1 != "-" ) { print $0; } }' $data_path/SNLI/snli_1.0/snli_1.0_$split.txt | cut -f 1,6,7 | sed '1d' > $fpath
-    cut -f1 $fpath > $data_path/SNLI/labels.$split
-    cut -f2 $fpath | $PTBTOKENIZER > $data_path/SNLI/s1.$split
-    cut -f3 $fpath | $PTBTOKENIZER > $data_path/SNLI/s2.$split
-    rm $fpath
-done
-rm -r $data_path/SNLI/snli_1.0
+# for split in train dev test
+# do
+#     fpath=$data_path/SNLI/$split.snli.txt
+#     awk '{ if ( $1 != "-" ) { print $0; } }' $data_path/SNLI/snli_1.0/snli_1.0_$split.txt | cut -f 1,6,7 | sed '1d' > $fpath
+#     cut -f1 $fpath > $data_path/SNLI/labels.$split
+#     cut -f2 $fpath | $PTBTOKENIZER > $data_path/SNLI/s1.$split
+#     cut -f3 $fpath | $PTBTOKENIZER > $data_path/SNLI/s2.$split
+#     rm $fpath
+# done
+# rm -r $data_path/SNLI/snli_1.0
 
 
 
 
 ### Get COCO captions and resnet-101 2048d-features
 # Captions : Copyright (c) 2015, COCO Consortium. All rights reserved.
-mkdir $data_path/COCO
-for split in train valid test
-do
-    curl -Lo $data_path/COCO/$split.pkl $COCO/$split.pkl
-done
+# mkdir $data_path/COCO
+# for split in train valid test
+# do
+#     curl -Lo $data_path/COCO/$split.pkl $COCO/$split.pkl
+# done
 
 
 

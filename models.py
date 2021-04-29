@@ -75,18 +75,20 @@ class SentBert(nn.Module):
         return merged, (embedding1, embedding2)
 
     def encode(self, sents):
-        # TODO: check if .eval() is needed
-        #  Answer: yes
         self.bert_model.eval()
         self.eval()
 
+        N, T = sents.shape
+        print('encoding sents.shape: ', sents.shape)
         with torch.no_grad():
             encoded_sent1 = self.tokenizer(
                 sents, padding=True, truncation=True)
             input_ids = torch.Tensor(encoded_sent1['input_ids']).long()
             attn_mask = torch.Tensor(encoded_sent1['attention_mask']).long()
             out = self.bert_model(input_ids, attention_mask=attn_mask)
+            hidden_states = out['last_hidden_state']
+            hidden_states = hidden_states * torch.reshape(attn_mask, (N, T, 1))
             embeddings = torch.mean(
-                out['last_hidden_state'][:, 1:, :], axis=1)  # N x hidden_size
+                hidden_states[:, 1:, :], axis=1)  # N x hidden_size
 
         return embeddings.detach()

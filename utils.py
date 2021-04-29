@@ -77,3 +77,50 @@ def load_snli_data(type, batch_size, save_dir):
       encoded_dataset, batch_size=batch_size)
 
   return encoded_dataloader
+
+
+def eval(model, test_dataloader):
+    num_correct = 0
+    num_test = 0
+    eval_accs = []
+
+    with torch.no_grad():
+        for i, data in enumerate(test_dataloader):
+            eval_sent1 = torch.stack(
+                data['sent1_input_ids'], dim=0).permute(1, 0)  # n x T
+            eval_sent2 = torch.stack(
+                data['sent2_input_ids'], dim=0).permute(1, 0)  # n x T
+            eval_attn_mask1 = torch.stack(
+                data['sent1_attention_mask'], dim=0).permute(1, 0)
+            eval_attn_mask2 = torch.stack(
+                data['sent2_attention_mask'], dim=0).permute(1, 0)
+            eval_sent1 = eval_sent1.to(device)
+            eval_sent2 = eval_sent2.to(device)
+            eval_attn_mask1 = eval_attn_mask1.to(device)
+            eval_attn_mask2 = eval_attn_mask2.to(device)
+            # eval_sent1 = eval_data['sent1_input_ids']
+            #print(eval_sent1.shape)
+            # eval_sent2 = eval_data['sent2_input_ids']
+            #print(eval_sent2.shape)
+            # eval_attn_mask1 = eval_data['sent1_attention_mask']
+            # eval_attn_mask2 = eval_data['sent2_attention_mask']
+            eval_labels = data['label'].to(device)
+            #print(eval_labels.shape)
+
+            #model = model.cpu()
+            batch_size = eval_sent1.shape[0]
+            eval_out, _ = model(eval_sent1, eval_attn_mask1,
+                                eval_sent2, eval_attn_mask2)  # N x 3
+            eval_loss = loss_function(eval_out, eval_labels)
+            eval_pred = torch.argmax(eval_out, 1)
+            eval_acc = (eval_pred == eval_labels).sum(
+            ).item() / batch_size
+
+            num_correct += (eval_pred == eval_labels).sum(
+            ).item()
+            num_test += batch_size
+            eval_accs.append(eval_acc)
+
+    final_acc = num_correct / num_test
+
+    return final_acc
