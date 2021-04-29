@@ -1,9 +1,9 @@
 # COS548-Final_Project
 ## hyperparams: lambda, temperature, pos+neg examples
-## baseline: lambda: 0.0, temperature:N/A
-## SCL#1: lambda:0.5, temperature: 1.0, pos:3, neg:3
-## SCL#2: lambda:0.5, temperature: 1.0, pos:3, neg: all neg in batch
-## AUG#1: lambda:0.5, temperature N/A, pos:3, neg:3
+1. baseline: lambda: 0.0, temperature:N/A
+2. SCL#1: lambda:0.5, temperature: 1.0, pos:3, neg:3
+3. SCL#2: lambda:0.5, temperature: 1.0, pos:3, neg: all neg in batch
+4. AUG#1: lambda:0.5, temperature N/A, pos:3, neg:3
 
 | Tables            | Glove         | Baseline      | SCL#1     | AUG#1    | SCL#2    | 
 | ------------------|:-------------:| -------------:| ---------:| --------:| --------:|
