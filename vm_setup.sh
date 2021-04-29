@@ -1,0 +1,1 @@
+conda activate pytorch_latest_p37
