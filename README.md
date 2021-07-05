@@ -2,13 +2,26 @@
 ## hyperparams: lambda, temperature, pos+neg examples
 1. baseline: lambda: 0.0, temperature:N/A
 2. SCL#1: lambda: 0.5, temperature: 1.0, pos:3, neg:3
-3. SCL#2: lambda: 0.5, temperature: 1.0, pos:3, neg: all neg in batch
-4. AUG#1: lambda: 0.5, temperature N/A, pos:3, neg:3
+3. AUG#1: lambda: 0.5, temperature N/A, pos:3, neg:3
+4. SCL#2: lambda: 0.5, temperature: 1.0, pos:3, neg: all neg in batch
 
 5. SCL#3: lambda: 1.0, temperature: 1.0, pos:3, neg:3
 6. SCL#4: lambda: 0.5, temperature: 1.0, pos: all, neg: all
 7. SCL#5: lambda: 1.0, temperature: 1.0, pos: 3, neg: all neg in batch
 8. SCL#6: lambda: 1.0, temperature: 1.0, pos: all , neg: all in a batch
+
+## Ablation Study (lambda)
+9. SCL#7: lambda: 0.9, tempeature: 1.0, pos:all, neg:all
+10. SCL#8: lambda: 0.7, tempeature: 1.0, pos:all, neg:all
+11. SCL#9: lambda: 0.3, temperature: 1.0, pos: all, neg:all
+12. SCL#10: lambda: 0.1, tempeature: 1.0, pos: all, neg:all
+
+## Ablation Study(temperature)
+13. SCL#11: lambda: 0.5, temperature: 0.7, pos: all, neg:all
+14. SCL#12: lambda: 0.5, temperature: 0.5, pos: all, neg:all
+15. SCL#13: lambda: 0.5, temperature: 0.3, pos: all, neg: all
+16. SCL#14: lambda: 0.5, temperature: 0.1, pos: all, neg: all
+17. SCL#15: lambda: 0.5, temperature: 0.9, pos: all, neg: all
 
 
 | Tables            | Glove         | Baseline      | SCL#1     | AUG#1    | SCL#2    | 
@@ -28,4 +41,4 @@
 | SST Fine-grained  | 43.8          |  38.96        | 42.31     | 44.71     | 41.67  |
 | TREC              | 82.8          |  83.8         | 89.2      | 83.8      | 87.6   |
 | MRPC              | 70.78         |  69.86        | 72.12     | 69.62     | 72.99  |
-| (AVG) Transfer    |    
+| (AVG) Transfer    | 74.27     |   75.585
