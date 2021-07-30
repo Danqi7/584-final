@@ -56,7 +56,6 @@ def load_snli_data(type, batch_size, save_dir):
   # Filter out data examples with -1 label
   dataset = dataset.filter(lambda e: e['label'] >= 0)
 
-  # Shuffle
   # Don't shuffle since we want same premise cluster together
   #dataset = dataset.shuffle()
 

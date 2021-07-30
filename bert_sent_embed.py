@@ -32,8 +32,7 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
     # Params
     batch_size = params["batch_size"]
     num_epochs = params["num_epochs"]
-    num_iters_per_print = params['num_iters_per_print']
-    num_epoch_per_eval = params['num_epoch_per_eval']
+    num_iters_per_eval = params['num_iters_per_eval']
     load_data_from_disk = params['load_data_from_disk']
     temperature = params['temperature']
     use_SCL = params['use_SCL']
@@ -41,9 +40,10 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
 
     # Print some info about train data
     num_data = len(train_loader) * batch_size
-    num_iters_per_epoch = num_data / batch_size
-    print('Total number of Iterations: ', num_iters_per_epoch * num_epochs)
-    print("num_data: ", num_data, "\nnum_iters_per_epoch: ", num_iters_per_epoch)
+    num_iterations_per_epoch = len(train_loader)
+    print('Total number of Iterations: ', num_iterations_per_epoch * num_epochs)
+    print("num_data: ", num_data, "\nnum_iters_per_epoch: ",
+          num_iterations_per_epoch)
 
     # Format sample eval data
     print(len(eval_data['sent1_input_ids']))
@@ -92,7 +92,9 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
             attn_mask1 = data['sent1_attention_mask'].to(device)
             attn_mask2 = data['sent2_attention_mask'].to(device)
             labels = data['label'].to(device)
-            print('sent1.shape: ', sent1.shape)
+            # print('sent1.shape: ', sent1.shape)
+            # print('sent.shape: ', sent2.shape)
+            # print('attn_mask1.shape: ', attn_mask1.shape)
 
             # Train batch
             model.zero_grad()
@@ -111,21 +113,21 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
 
                 SCLLoss = 0
                 for eidx in range(batch_size):
+                    # positive examples only exist if there is entrailment pair
                     if labels[eidx] == ENTAILMEN_LABEL:
                         SCL_cnt += 1
                         current_premise = sent1[eidx, :]
                         anchor = torch.unsqueeze(embeds1[eidx], dim=1)  # H x 1
-                        # 1 x H, its entailment is pos example
+                        # 1 x H, its entailment is pos
                         scores = torch.unsqueeze(embeds2[eidx], dim=0)
 
                         pos_cnt = 1
                         neg_cnt = 0
                         same_premise_idxs = []
                         entailment_idxs = [eidx]
-                        same_premise_not_entailment = []
                         pos_candidates_idxs = []  # w/t itself
 
-                        # Figure out entailment_idxs, pos_candidates_idxs
+                        # figure out entailment_idxs, pos_candidates_idxs
                         for j in range(batch_size):
                             if torch.all(sent1[j, :] == current_premise):
                                 same_premise_idxs.append(j)
@@ -133,58 +135,52 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
                                     entailment_idxs.append(j)
                                     pos_candidates_idxs.append(j)
 
-                        # Positive examples
+                        # positive examples
                         # print('pos_candidates_idxs: ', pos_candidates_idxs)
                         # print('entailment_idxs: ', entailment_idxs)
-                        current_positive_num = positive_num - 1
-                        if len(pos_candidates_idxs) < positive_num - 1:
-                            current_positive_num = len(pos_candidates_idxs)
-                        pos_idxs = np.random.choice(
-                            pos_candidates_idxs, current_positive_num, replace=False)
+
+                        # current_positive_num = positive_num - 1
+                        # if len(pos_candidates_idxs) < positive_num - 1 :
+                        #   current_positive_num = len(pos_candidates_idxs)
+                        #pos_idxs = np.random.choice(pos_candidates_idxs, current_positive_num, replace=False)
+                        pos_idxs = pos_candidates_idxs
                         for pos_id in pos_idxs:
-                            scores = torch.cat((scores, torch.unsqueeze(embeds2[pos_id, :], dim=0)), dim=0)
+                            scores = torch.cat(
+                                (scores, torch.unsqueeze(embeds2[pos_id, :], dim=0)), dim=0)
                             pos_cnt += 1
 
-                        # Negative examples
+                        # negative examples
                         candidates_idxs = np.arange(batch_size)
                         candidates_idxs = np.delete(candidates_idxs, entailment_idxs)
-                        neg_idxs = np.random.choice(candidates_idxs, negative_num, replace=False)
-                        for neg_id in neg_idxs:
-                            scores = torch.cat((scores, torch.unsqueeze(embeds2[neg_id, :], dim=0)), dim=0)
+                        all_neg_num = len(candidates_idxs)
+                        #neg_idxs = np.random.choice(candidates_idxs, all_neg_num, replace=False)
+                        for neg_id in candidates_idxs:
+                            # ((pos_cnt + neg_cnt) x H)
+                            scores = torch.cat(
+                                (scores, torch.unsqueeze(embeds2[neg_id, :], dim=0)), dim=0)
                             neg_cnt += 1
-
-                        #if pos_cnt > 1:
-                        #  print('entailment_idxs for ', i , ' : ', entailment_idxs)
-                        # print('!!! same_premise_idx: ', same_premise_idxs)
-                        # print('!!! entailment_idxs for ', eidx , ' : ', entailment_idxs)
-                        # print('!!! candidates_idxs: ', candidates_idxs)
-                        # print('~~~computing SCL witph %d positive and %d negative...'%(pos_cnt, neg_cnt))
-                        # print('anchor.shape: ', anchor.shape)
-                        # print('scores.shape: ', scores.shape)
                         logits = scores @ anchor  # (pos+neg) x 1
                         logits = logits / temperature
                         log_prob = F.log_softmax(logits, dim=0)  # (pos+neg) x 1
-                        #print('log_prob.shape: ', log_prob.shape)
                         SCLLoss += -torch.sum(log_prob[:pos_cnt, :]) / pos_cnt
-                #print('DONE SCL!!!!!....')
+                    #print('DONE SCL SCLLoss: !!!!!...., ', SCLLoss)
 
-
-            # CE Loss                    
             loss = loss_function(output, labels)
-
-            # SCL + CE Loss
+            #print(SCL_cnt)
             if use_SCL == True:
-                loss = (1-lamb) * loss + lamb * (SCLLoss / SCL_cnt)
-            
+                #loss += (SCLLoss / SCL_cnt)
+                loss = (1-lamb) * loss + lamb * (SCLLoss / SCL_cnt) 
+            # print('loss: ', loss.item())
             loss.backward()
             optimizer.step()
             scheduler.step()
 
             # Evaluate on sample validation dataset
-            if i % num_iters_per_print == 0 or (e == num_epochs-1 and i == num_iters_per_epoch - 1):
+            if i % num_iters_per_eval == 0 or e == num_epochs - 1 and i == num_iterations_per_epoch - 1:
                 with torch.no_grad():
                     sample_size = 100
                     if eval_num > sample_size:
+                        #print('eval_sent1.shape: ', eval_sent1.shape)
                         sample_mask = np.random.choice(
                             eval_num, sample_size, replace=False)
                         sample_mask = torch.from_numpy(sample_mask)
@@ -210,12 +206,18 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
                     sample_attn2 = sample_attn2.to(device)
                     sample_label = sample_label.to(device)
 
+                    #print('sample_sent1.shape', sample_sent1.shape)
+                    #print('sample_label.shape', sample_label.shape)
+
                     sample_out, _ = model(sample_sent1, sample_attn1,
                                         sample_sent2, sample_attn2) # N x 3
+                    #print('sample_out.shape: ', sample_out.shape)
                     sample_loss = loss_function(sample_out, sample_label)
+                    #print('sample_out.shape: ', sample_out.shape)
                     sample_pred = torch.argmax(sample_out, 1)
+                    #print('sample_pred.shape: ', sample_pred.shape)
                     sample_acc = (sample_pred == sample_label).sum().item() / sample_label.shape[0]
-                    
+                
                     output_pred = torch.argmax(output, 1)
                     acc = (output_pred == labels).sum().item() / labels.shape[0]
                     train_losses.append(loss)
@@ -225,10 +227,10 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
 
                     print('[%d/%d][%d/%d]\tTrain Loss: %.4f\tEval Loss: %.4f\tTrain Acc: %.4f\tEval Acc: %.4f'
                         % (e, num_epochs, i, len(train_loader),
-                            loss.item(), sample_loss.item(), acc, sample_acc))
-            
-            # Clear Cache
-            torch.cuda.empty_cache()
+                        loss.item(), sample_loss.item(), acc, sample_acc))
+                
+                    # Clear Cache
+                    torch.cuda.empty_cache()
     
     return train_losses, eval_losses, train_accs, eval_accs
 
@@ -292,7 +294,7 @@ if __name__ == "__main__":
         "batch_size": batch_size,
         "num_iters_per_print": num_iters_per_print,
         "num_epochs": args.num_epochs,
-        "num_epoch_per_eval": num_epoch_per_eval,
+        "num_iters_per_eval": 10,
         "save_file": args.store_files,
         "load_data_from_disk": args.load_data_from_disk,
         "temperature": args.temperature,
