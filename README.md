@@ -1,4 +1,13 @@
 # COS548-Final_Project
+## To download data from HuggingFace and then run:
+python bert_sent_embed.py --batch_size 64 --use_SCL
+
+## To run after loading data to local disk: 
+python bert_sent_embed.py --batch_size 64 --load_data_from_disk --use_SCL
+
+
+
+
 ## hyperparams: lambda, temperature, pos+neg examples
 1. baseline: lambda: 0.0, temperature:N/A
 2. SCL#1: lambda: 0.5, temperature: 1.0, pos:3, neg:3

@@ -1,4 +1,6 @@
+.vscode
 .DS_Store
+__pycache__
 ./train/*
 ./test/*
 ./validation/*
@@ -6,3 +8,4 @@ SentEval-master/data/*
 !SentEval-master/data/downstream
 SentEval-master/data/downstream/*
 !SentEval-master/data/downstream/get_transfer_data.bash
+*.pdf

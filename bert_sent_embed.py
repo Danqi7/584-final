@@ -21,7 +21,6 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 HIDDEN_SIZE = 512
 NUM_CLASS = 3
-BATCH_SIZE = 16
 
 ENTAILMEN_LABEL = 0
 NEUTRAL_LABEL = 1
@@ -33,10 +32,12 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
     batch_size = params["batch_size"]
     num_epochs = params["num_epochs"]
     num_iters_per_eval = params['num_iters_per_eval']
-    load_data_from_disk = params['load_data_from_disk']
     temperature = params['temperature']
     use_SCL = params['use_SCL']
+    temperature = params['temperature']
     lamb = params['lamb']
+    positive_num = params['pos_num']
+    negative_num = params['neg_num']
 
     # Print some info about train data
     num_data = len(train_loader) * batch_size
@@ -108,8 +109,8 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
                 #print('start SCL....')
                 batch_size = sent1.shape[0]  # N
                 hidden_size = embeds1.shape[1]  # H
-                negative_num = 3  # TODO: hyperparam
-                positive_num = 3
+                # negative_num = 3  # TODO: hyperparam
+                # positive_num = 3
 
                 SCLLoss = 0
                 for eidx in range(batch_size):
@@ -138,12 +139,14 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
                         # positive examples
                         # print('pos_candidates_idxs: ', pos_candidates_idxs)
                         # print('entailment_idxs: ', entailment_idxs)
-
-                        # current_positive_num = positive_num - 1
-                        # if len(pos_candidates_idxs) < positive_num - 1 :
-                        #   current_positive_num = len(pos_candidates_idxs)
-                        #pos_idxs = np.random.choice(pos_candidates_idxs, current_positive_num, replace=False)
-                        pos_idxs = pos_candidates_idxs
+                        
+                        if positive_num > 0:
+                            current_positive_num = positive_num - 1
+                            if len(pos_candidates_idxs) < positive_num - 1 : # not enough positive, take whatever we have
+                                current_positive_num = len(pos_candidates_idxs)
+                            pos_idxs = np.random.choice(pos_candidates_idxs, current_positive_num, replace=False)
+                        else:
+                            pos_idxs = pos_candidates_idxs
                         for pos_id in pos_idxs:
                             scores = torch.cat(
                                 (scores, torch.unsqueeze(embeds2[pos_id, :], dim=0)), dim=0)
@@ -153,8 +156,11 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
                         candidates_idxs = np.arange(batch_size)
                         candidates_idxs = np.delete(candidates_idxs, entailment_idxs)
                         all_neg_num = len(candidates_idxs)
-                        #neg_idxs = np.random.choice(candidates_idxs, all_neg_num, replace=False)
-                        for neg_id in candidates_idxs:
+                        if negative_num > 0: 
+                            neg_idxs = np.random.choice(candidates_idxs, all_neg_num, replace=False)
+                        else: # take all negative examples
+                            neg_idxs = candidates_idxs
+                        for neg_id in neg_idxs:
                             # ((pos_cnt + neg_cnt) x H)
                             scores = torch.cat(
                                 (scores, torch.unsqueeze(embeds2[neg_id, :], dim=0)), dim=0)
@@ -274,7 +280,6 @@ if __name__ == "__main__":
             train_dataset, validation_dataset, test_dataset))
     else:
         print("Loading data from scratch (HG) ...")
-        #sample_dataloader = load_snli_data('test', batch_size, save_dir="./sample")
         train_dataloader = load_snli_data('train', batch_size, save_dir="./train")
         test_dataloader = load_snli_data('test', 10000, save_dir='./test')
         validation_dataloader = load_snli_data('validation', 10000, save_dir='./validation')
@@ -297,9 +302,11 @@ if __name__ == "__main__":
         "num_iters_per_eval": 10,
         "save_file": args.store_files,
         "load_data_from_disk": args.load_data_from_disk,
-        "temperature": args.temperature,
         "use_SCL": args.use_SCL,
+        "temperature": args.temperature,
         "lamb": args.lamb,
+        "pos_num": args.pos_num,
+        "neg_num": args.neg_num,
     }
 
     # Model
