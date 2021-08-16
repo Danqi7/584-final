@@ -30,7 +30,7 @@ python sentbert_eval.py
 ### Evaluation results on Avg Glove embeddings, our SBERT baseline, all positive/negative SCL model with lambda 0.3
 
 | Tables                      | STS(12-16) AVG         | Sentence Transfer Tasks AVG      |
-| ----------------------------|:-------------------:   | --------------------------------:| 
+| ----------------------------|:-------------------:   | :--------------------------------:| 
 | Avg. GloVe Embeddings         | 44.98                  |  74.27                         |
 | Our SBERT baseline          | 67.61                  |  75.56                           |
 | allpalln-lambda0.3-SCL      | 70.44                  |  76.16                           |
