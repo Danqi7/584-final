@@ -7,13 +7,13 @@ This is a final project for [COS 584](https://princeton-nlp.github.io/cos484/cos
 
 ![scl](https://github.com/Danqi7/584-final/blob/master/illustrates.png)
 
-### To download data(SNLI) from HuggingFace and then run:
+### To download data(SNLI) from HuggingFace and train:
 ```
 python bert_sent_embed.py --pos_num -1 --neg_num -1 --use_SCL
 ```
 
 
-### To load data from local disk and the run:
+### To load data from local disk and train:
 ```
 python bert_sent_embed.py --load_data_from_disk --pos_num -1 --neg_num -1 --use_SCL
 ```
@@ -25,6 +25,15 @@ python bert_sent_embed.py --load_data_from_disk --pos_num -1 --neg_num -1 --use_
 4. Run the evaluation script 
 ```
 python sentbert_eval.py
+```
+
+### To generate sentence embedding using trained model
+```python
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    model = SentBert(512*3, 3, tokenizer)
+    model.load_state_dict(torch.load(model_path, map_location=device))
+
+    embedding = model.encode("hello world.")
 ```
 
 ### Evaluation results on Avg Glove embeddings, our SBERT baseline, all positive/negative SCL model with lambda 0.3
