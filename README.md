@@ -21,7 +21,8 @@ python bert_sent_embed.py --load_data_from_disk --pos_num -1 --neg_num -1 --use_
 ### To evaluate trained model on downstream sentence tasks through [SentEval](https://github.com/facebookresearch/SentEval)
 1. ```cd SentEval-master/examples/```
 2. ```Modify 'sentbert_eval.py' to change $MODEL_PATH to your model```
-3. Run the evaluation script 
+3.  ```Modify 'sentbert_eval.py' to change $transfer_tasks to the tasks you want to evaluate```
+4. Run the evaluation script 
 ```
 python sentbert_eval.py
 ```
@@ -30,10 +31,10 @@ python sentbert_eval.py
 
 | Tables                      | STS(12-16) AVG         | Sentence Transfer Tasks AVG      |
 | ----------------------------|:-------------------:   | --------------------------------:| 
-| Avg. GloVe Embeddings         | 44.98                  |  74.27                           |
+| Avg. GloVe Embeddings         | 44.98                  |  74.27                         |
 | Our SBERT baseline          | 67.61                  |  75.56                           |
 | allpalln-lambda0.3-SCL      | 70.44                  |  76.16                           |
 
 Note, our SBERT baseline is not the full scale SBERT model from [SBERT](https://arxiv.org/abs/1908.10084), but rather our
 own replementation using only SNLI data, medium-sized [8/512 bert](https://github.com/google-research/bert), and the same hyperparameters 
-with the SCL models. 
+with the SCL models. The reason for using a smaller sized bert and only SNLI is simply computation constraints.
