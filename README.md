@@ -3,7 +3,7 @@ This code accompanies the paper: [Sentence Embeddings using Supervised Contrasti
 
 Danqi Liao.
 
-This project is done as final project for [COS 584](https://princeton-nlp.github.io/cos484/cos584.html).
+This is a final project for [COS 584](https://princeton-nlp.github.io/cos484/cos584.html).
 
 ![scl](https://github.com/Danqi7/584-final/blob/master/illustrates.png)
 
