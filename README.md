@@ -16,6 +16,14 @@ python bert_sent_embed.py --pos_num -1 --neg_num -1 --use_SCL
 python bert_sent_embed.py --load_data_from_disk --pos_num -1 --neg_num -1 --use_SCL
 ```
 
+### To evaluate trained model on downstream sentence tasks through [SentEval](https://github.com/facebookresearch/SentEval)
+1. ```cd SentEval-master/examples/```
+2. ```Modify 'sentbert_eval.py' to change $MODEL_PATH to your model```
+3. Run the evaluation script 
+```
+python sentbert_eval.py
+```
+
 
 
 ## hyperparams: lambda, temperature, pos+neg examples
