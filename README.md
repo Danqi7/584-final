@@ -1,9 +1,9 @@
 # Sentence Embeddings using Supervised Contrastive Learning
 This code accompanies the paper: [Sentence Embeddings using Supervised Contrastive Learning](https://arxiv.org/abs/2106.04791)
 
-Danqi Liao.!
+Danqi Liao.
 
-[scl](https://github.com/Danqi7/584-final/illustrates.png)
+![scl](https://github.com/Danqi7/584-final/blob/master/illustrates.png)
 
 ### To download data from HuggingFace and then run:
 ```
