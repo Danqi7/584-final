@@ -1,10 +1,17 @@
-# COS548-Final_Project
-## To download data from HuggingFace and then run:
+# Sentence Embeddings using Supervised Contrastive Learning
+This code accompanies the paper: [Sentence Embeddings using Supervised Contrastive Learning](https://arxiv.org/abs/2106.04791)
+Danqi Liao.
+
+### To download data from HuggingFace and then run:
+```
 python bert_sent_embed.py --batch_size 64 --use_SCL
+```
 
-## To run after loading data to local disk: 
+
+### To run to load data from local disk:
+```
 python bert_sent_embed.py --batch_size 64 --load_data_from_disk --use_SCL
-
+```
 
 
 
