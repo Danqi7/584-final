@@ -7,13 +7,25 @@ Danqi Liao.
 
 ### To download data from HuggingFace and then run:
 ```
-python bert_sent_embed.py --batch_size 64 --use_SCL
+python bert_sent_embed.py 
+    --batch_size 64
+    --temperature 1
+    --pos_num -1
+    --neg_num -1
+    --use_SCL
 ```
 
 
-### To run to load data from local disk:
+### To load data from local disk and the run:
 ```
-python bert_sent_embed.py --batch_size 64 --load_data_from_disk --use_SCL
+python bert_sent_embed.py 
+    --batch_size 64 
+    --load_data_from_disk 
+    --temperature 1
+    --pos_num -1
+    --neg_num -1
+    --use_SCL
+    --use_SCL
 ```
 
 
