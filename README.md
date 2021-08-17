@@ -47,3 +47,6 @@ embedding = model.encode("hello world.")
 Note, our SBERT baseline is not the full scale SBERT model from [SBERT](https://arxiv.org/abs/1908.10084), but rather our
 own replementation using only SNLI data, medium-sized [8/512 bert](https://github.com/google-research/bert), and the same hyperparameters 
 with the SCL models. The reason for using a smaller sized bert and only SNLI data is simply computation constraints.
+
+### Example trained sentence encoding model
+[sent-bert8](https://drive.google.com/drive/folders/1TD0R0Y7uoV3cUv4SqeMrBTHjmTqmK8NY?usp=sharing)
