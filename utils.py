@@ -97,16 +97,8 @@ def eval(model, test_dataloader):
             eval_sent2 = eval_sent2.to(device)
             eval_attn_mask1 = eval_attn_mask1.to(device)
             eval_attn_mask2 = eval_attn_mask2.to(device)
-            # eval_sent1 = eval_data['sent1_input_ids']
-            #print(eval_sent1.shape)
-            # eval_sent2 = eval_data['sent2_input_ids']
-            #print(eval_sent2.shape)
-            # eval_attn_mask1 = eval_data['sent1_attention_mask']
-            # eval_attn_mask2 = eval_data['sent2_attention_mask']
             eval_labels = data['label'].to(device)
-            #print(eval_labels.shape)
 
-            #model = model.cpu()
             batch_size = eval_sent1.shape[0]
             eval_out, _ = model(eval_sent1, eval_attn_mask1,
                                 eval_sent2, eval_attn_mask2)  # N x 3

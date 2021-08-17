@@ -79,11 +79,7 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
             # Positive examples only exist if there is entrailment pair
             if use_SCL == True:
                 SCL_cnt = 0
-                #print('start SCL....')
                 batch_size = sent1.shape[0]  # N
-                hidden_size = embeds1.shape[1]  # H
-                # negative_num = 3  # TODO: hyperparam
-                # positive_num = 3
 
                 SCLLoss = 0
                 for eidx in range(batch_size):
@@ -109,10 +105,7 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
                                     entailment_idxs.append(j)
                                     pos_candidates_idxs.append(j)
 
-                        # positive examples
-                        # print('pos_candidates_idxs: ', pos_candidates_idxs)
-                        # print('entailment_idxs: ', entailment_idxs)
-                        
+                        # positive examples                        
                         if positive_num > 0:
                             current_positive_num = positive_num - 1
                             if len(pos_candidates_idxs) < positive_num - 1 : # not enough positive, take whatever we have
@@ -142,14 +135,11 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
                         logits = logits / temperature
                         log_prob = F.log_softmax(logits, dim=0)  # (pos+neg) x 1
                         SCLLoss += -torch.sum(log_prob[:pos_cnt, :]) / pos_cnt
-                    #print('DONE SCL SCLLoss: !!!!!...., ', SCLLoss)
 
             loss = loss_function(output, labels)
-            #print(SCL_cnt)
+            
             if use_SCL == True:
-                #loss += (SCLLoss / SCL_cnt)
-                loss = (1-lamb) * loss + lamb * (SCLLoss / SCL_cnt) 
-            # print('loss: ', loss.item())
+                loss = (1-lamb) * loss + lamb * (SCLLoss / SCL_cnt)
             loss.backward()
             optimizer.step()
             scheduler.step()
@@ -159,7 +149,6 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
                 with torch.no_grad():
                     sample_size = 100
                     if eval_num > sample_size:
-                        #print('eval_sent1.shape: ', eval_sent1.shape)
                         sample_mask = np.random.choice(
                             eval_num, sample_size, replace=False)
                         sample_mask = torch.from_numpy(sample_mask)
@@ -185,16 +174,10 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
                     sample_attn2 = sample_attn2.to(device)
                     sample_label = sample_label.to(device)
 
-                    #print('sample_sent1.shape', sample_sent1.shape)
-                    #print('sample_label.shape', sample_label.shape)
-
                     sample_out, _ = model(sample_sent1, sample_attn1,
                                         sample_sent2, sample_attn2) # N x 3
-                    #print('sample_out.shape: ', sample_out.shape)
                     sample_loss = loss_function(sample_out, sample_label)
-                    #print('sample_out.shape: ', sample_out.shape)
                     sample_pred = torch.argmax(sample_out, 1)
-                    #print('sample_pred.shape: ', sample_pred.shape)
                     sample_acc = (sample_pred == sample_label).sum().item() / sample_label.shape[0]
                 
                     output_pred = torch.argmax(output, 1)
@@ -318,31 +301,6 @@ if __name__ == "__main__":
 
     final_acc = eval(model, test_dataloader)
     print("Full Testing Accuracy: ", final_acc)
-
-    # # Plot
-    # plt.figure()
-    # plt.title('Train Loss per ' + str(num_iters_per_eval) + ' iterations')
-    # plt.plot(train_losses)
-    # plt.xlabel('ith ' + str(num_iters_per_eval) + ' iterations')
-    # plt.ylabel('Train Loss')
-
-    # plt.figure()
-    # plt.title('Validation Loss per ' + str(num_iters_per_eval) + ' iterations')
-    # plt.plot(validation_losses)
-    # plt.xlabel('ith ' + str(num_iters_per_eval) + ' iterations')
-    # plt.ylabel('Validation Loss')
-
-    # plt.figure()
-    # plt.title('Train Accuracy per ' + str(num_iters_per_eval) + ' iterations')
-    # plt.plot(train_accs)
-    # plt.xlabel('ith ' + str(num_iters_per_eval) + ' iterations')
-    # plt.ylabel('Train Accuracy')
-
-    # plt.figure()
-    # plt.title('Validation Accuracy per ' + str(num_iters_per_eval) + ' iterations')
-    # plt.plot(validation_accs)
-    # plt.xlabel('ith ' + str(num_iters_per_eval) + ' iterations')
-    # plt.ylabel('Validation Accuracy')
 
     f = open(dir_name + "/model_info.txt", "a")
     content = "model: " + dir_name + "\n" + "Train Loss: " + \
