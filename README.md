@@ -29,20 +29,20 @@ python sentbert_eval.py
 
 ### To generate sentence embedding using trained model
 ```python
-    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-    model = SentBert(512*3, 3, tokenizer)
-    model.load_state_dict(torch.load(model_path, map_location=device))
+tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+model = SentBert(512*3, 3, tokenizer)
+model.load_state_dict(torch.load(model_path, map_location=device))
 
-    embedding = model.encode("hello world.")
+embedding = model.encode("hello world.")
 ```
 
 ### Evaluation results on Avg Glove embeddings, our SBERT baseline, all positive/negative SCL model with lambda 0.3
 
-| Tables                      | STS(12-16) AVG         | Sentence Transfer Tasks AVG      |
+| Tables                      | STS(12-16) AVG         | Sentence Transfer Tasks AVG       |
 | ----------------------------|:-------------------:   | :--------------------------------:| 
-| Avg. GloVe Embeddings         | 44.98                  |  74.27                         |
-| Our SBERT baseline          | 67.61                  |  75.56                           |
-| allpalln-lambda0.3-SCL      | 70.44                  |  76.16                           |
+| Avg. GloVe Embeddings       | 44.98                  |  74.27                            |
+| Our SBERT baseline          | 67.61                  |  75.56                            |
+| allpalln-lambda0.3-SCL      | 70.44                  |  76.16                            |
 
 Note, our SBERT baseline is not the full scale SBERT model from [SBERT](https://arxiv.org/abs/1908.10084), but rather our
 own replementation using only SNLI data, medium-sized [8/512 bert](https://github.com/google-research/bert), and the same hyperparameters 

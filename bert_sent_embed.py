@@ -47,24 +47,11 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
           num_iterations_per_epoch)
 
     # Format sample eval data
-    print(len(eval_data['sent1_input_ids']))
-    print(eval_data['sent1_input_ids'].shape)
-    # if load_data_from_disk != True:
-    #     eval_sent1 = torch.stack(eval_data['sent1_input_ids'], dim=0).permute(1, 0)  # n x T
-    #     eval_sent2 = torch.stack(eval_data['sent2_input_ids'],dim=0).permute(1, 0) # n x T
-    #     eval_attn_mask1 = torch.stack(eval_data['sent1_attention_mask'], dim=0).permute(1,0)
-    #     eval_attn_mask2 = torch.stack(eval_data['sent2_attention_mask'], dim=0).permute(1,0)
-    # else:
-    print(eval_data.keys())
-    # eval_premise = eval_data['premise'][:3, :]
-    
     eval_sent1 = eval_data['sent1_input_ids']
     eval_sent2 = eval_data['sent2_input_ids']
     eval_attn_mask1 = eval_data['sent1_attention_mask']
     eval_attn_mask2 = eval_data['sent2_attention_mask']
     eval_labels = eval_data['label']
-    #print(eval_sent1[:6, :])
-    #print("?=? , ", torch.all(eval_sent1[0, :] == eval_sent1[1, :]))
 
     eval_num = eval_labels.shape[0]
     print(
@@ -77,25 +64,11 @@ def train(model, optimizer, scheduler, loss_function, train_loader, eval_data, p
     eval_accs = []
     for e in range(num_epochs):
         for i, data in enumerate(train_loader):
-            #if load_data_from_disk != True:
-            #     sent1 = torch.stack(data['sent1_input_ids'], dim=0)  # T x n
-            #     sent1 = sent1.permute(1, 0).to(device) # n x T
-            #     attn_mask1 = torch.stack(data['sent1_attention_mask'],dim=0)
-            #     attn_mask1 = attn_mask1.permute(1, 0).to(device)
-
-            #     sent2 = torch.stack(data['sent2_input_ids'],dim=0)
-            #     sent2 = sent2.permute(1, 0).to(device) # n x T
-            #     attn_mask2 = torch.stack(data['sent2_attention_mask'],dim=0)
-            #     attn_mask2 = attn_mask2.permute(1, 0).to(device)
-            # else:
             sent1 = data['sent1_input_ids'].to(device)
             sent2 = data['sent2_input_ids'].to(device)
             attn_mask1 = data['sent1_attention_mask'].to(device)
             attn_mask2 = data['sent2_attention_mask'].to(device)
             labels = data['label'].to(device)
-            # print('sent1.shape: ', sent1.shape)
-            # print('sent.shape: ', sent2.shape)
-            # print('attn_mask1.shape: ', attn_mask1.shape)
 
             # Train batch
             model.zero_grad()
